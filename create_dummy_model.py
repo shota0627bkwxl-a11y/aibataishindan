@@ -1,6 +1,6 @@
 import tensorflow as tf
-from tensorflow.keras.models import Sequential # type: ignore
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D # type: ignore
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, Flatten
 from tensorflow.keras.applications import MobileNetV2 # type: ignore
 import numpy as np
 
