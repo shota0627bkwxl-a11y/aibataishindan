@@ -10,8 +10,28 @@ app = Flask(__name__)
 model = None
 IMAGE_SIZE = (224, 224) # 訓練時と同じサイズ
 
-# --- 2. AIモデルのロード（サーバー起動時に1回だけ実行）
-# モデルファイルが無い場合はダミーモデルを作成する
+# --- 2. AIモデルのロード（サーバー起動時に1回だけ実行） ---
+
+# Google Driveなどからモデルをダウンロードする機能
+# 環境変数 'MODEL_URL' が設定されていれば、そこからダウンロードを試みる
+MODEL_URL = os.environ.get('MODEL_URL')
+
+if MODEL_URL:
+    print(f"環境変数 MODEL_URL が設定されています。モデルのダウンロードを試みます...")
+    try:
+        import gdown
+        # 既存のモデルがあれば削除して上書き（最新にするため）
+        if os.path.exists('horse_body_model.h5'):
+            os.remove('horse_body_model.h5')
+        
+        # gdownを使ってダウンロード (fuzzy=TrueでGoogleDriveのセキュリティ警告を回避)
+        output = 'horse_body_model.h5'
+        gdown.download(MODEL_URL, output, quiet=False, fuzzy=True)
+        print("モデルのダウンロードが完了しました。")
+    except Exception as e:
+        print(f"モデルのダウンロードに失敗しました: {e}")
+
+# モデルファイルが無い場合はダミーモデルを作成する (ダウンロード失敗時や未設定時)
 if not os.path.exists('horse_body_model.h5'):
     print("AIモデルが見つかりません。ダミーモデルを作成します...")
     # create_dummy_model.py を実行
@@ -24,7 +44,7 @@ if not os.path.exists('horse_body_model.h5'):
     except FileNotFoundError:
         print("create_dummy_model.py が見つかりません。")
 
-# 再度存在確認
+# モデルロード
 if os.path.exists('horse_body_model.h5'):
     try:
         model = load_model('horse_body_model.h5')
@@ -70,30 +90,6 @@ def diagnose_horse():
         # 画像を前処理
         image_bytes = file.read()
         processed_image = preprocess_image(image_bytes)
-        
-        # --- データ収集機能 ---
-        # ユーザーがアップした画像をサーバーに保存する（将来の学習用）
-        import datetime
-        import uuid
-        import os
-
-        # ディレクトリがなければ作成 (念のため)
-        save_dir = 'collected_data'
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-
-        # ファイル名: YYYYMMDD_HHMMSS_UUID.jpg
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        unique_id = str(uuid.uuid4())[:8]
-        filename = f"{timestamp}_{unique_id}.jpg"
-        save_path = os.path.join(save_dir, filename)
-
-        # バイナリデータを保存
-        with open(save_path, 'wb') as f:
-            f.write(image_bytes)
-        
-        print(f" * 画像を保存しました: {save_path}")
-        # -------------------
         
         # AIモデルによる予測（5クラス分類: S, A, B, C, D）
         prediction = model.predict(processed_image)

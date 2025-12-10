@@ -14,47 +14,14 @@
     <p>パドックの馬の写真をアップロードしてください</p>
 
     <div class="upload-container">
-
-        <div
-            style="background-color: #ffe6e6; border: 1px solid #ffcccc; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 0.9em; text-align: left;">
-            <strong>⚠️ 重要なお知らせ</strong><br>
-            ・ご自身で撮影された写真のみアップロードしてください。<br>
-            ・ネット上の画像や、他人の著作物のアップロードは禁止です。<br>
-            ・アップロードされた画像は、AIの精度向上のために利用させていただく場合があります。
-        </div>
-
         <input type="file" id="imageInput" accept="image/*">
-
-        <div style="margin: 15px 0; text-align: left; font-size: 0.95em;">
-            <label style="cursor: pointer;">
-                <input type="checkbox" id="agreementCheck">
-                上記に同意し、画像の権利は自分にあることを誓約します。
-            </label>
-        </div>
-
-        <button id="uploadButton" disabled style="background-color: #ccc; cursor: not-allowed;">診断する</button>
+        <button id="uploadButton">診断する</button>
     </div>
 
     <div id="loading">AIが診断中...</div>
     <div id="result"></div>
 
     <script>
-        // 利用規約チェックボックスの制御
-        const agreementCheck = document.getElementById('agreementCheck');
-        const uploadButton = document.getElementById('uploadButton');
-
-        agreementCheck.addEventListener('change', () => {
-            if (agreementCheck.checked) {
-                uploadButton.disabled = false;
-                uploadButton.style.backgroundColor = '#007bff';
-                uploadButton.style.cursor = 'pointer';
-            } else {
-                uploadButton.disabled = true;
-                uploadButton.style.backgroundColor = '#ccc';
-                uploadButton.style.cursor = 'not-allowed';
-            }
-        });
-
         document.getElementById('uploadButton').addEventListener('click', () => {
             const imageInput = document.getElementById('imageInput');
             const resultDiv = document.getElementById('result');
