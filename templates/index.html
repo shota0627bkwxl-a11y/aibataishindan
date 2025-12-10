@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI馬体診断 (模擬版)</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='sstyle.css') }}">
+</head>
+
+<body>
+    <h1>AI馬体診断</h1>
+    <p>パドックの馬の写真をアップロードしてください</p>
+
+    <div class="upload-container">
+
+        <div
+            style="background-color: #ffe6e6; border: 1px solid #ffcccc; padding: 10px; margin-bottom: 15px; border-radius: 5px; font-size: 0.9em; text-align: left;">
+            <strong>⚠️ 重要なお知らせ</strong><br>
+            ・ご自身で撮影された写真のみアップロードしてください。<br>
+            ・ネット上の画像や、他人の著作物のアップロードは禁止です。<br>
+            ・アップロードされた画像は、AIの精度向上のために利用させていただく場合があります。
+        </div>
+
+        <input type="file" id="imageInput" accept="image/*">
+
+        <div style="margin: 15px 0; text-align: left; font-size: 0.95em;">
+            <label style="cursor: pointer;">
+                <input type="checkbox" id="agreementCheck">
+                上記に同意し、画像の権利は自分にあることを誓約します。
+            </label>
+        </div>
+
+        <button id="uploadButton" disabled style="background-color: #ccc; cursor: not-allowed;">診断する</button>
+    </div>
+
+    <div id="loading">AIが診断中...</div>
+    <div id="result"></div>
+
+    <script>
+        // 利用規約チェックボックスの制御
+        const agreementCheck = document.getElementById('agreementCheck');
+        const uploadButton = document.getElementById('uploadButton');
+
+        agreementCheck.addEventListener('change', () => {
+            if (agreementCheck.checked) {
+                uploadButton.disabled = false;
+                uploadButton.style.backgroundColor = '#007bff';
+                uploadButton.style.cursor = 'pointer';
+            } else {
+                uploadButton.disabled = true;
+                uploadButton.style.backgroundColor = '#ccc';
+                uploadButton.style.cursor = 'not-allowed';
+            }
+        });
+
+        document.getElementById('uploadButton').addEventListener('click', () => {
+            const imageInput = document.getElementById('imageInput');
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+
+            // 1. 画像が選択されているかチェック
+            if (imageInput.files.length === 0) {
+                resultDiv.innerHTML = '画像を選択してください。';
+                resultDiv.style.color = 'red';
+                return;
+            }
+
+            // 2. 結果をリセットし、ローディング表示を開始
+            resultDiv.innerHTML = '';
+            resultDiv.style.color = '#333';
+            loadingDiv.style.display = 'block';
+
+            // 3. サーバーに画像を送信 (fetch)
+            const formData = new FormData();
+            formData.append('image', imageInput.files[0]);
+
+            fetch('/diagnose', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('ネットワークエラーが発生しました');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingDiv.style.display = 'none';
+                    if (data.success) {
+                        const score = data.score.toFixed(1);
+                        const comment = data.comment;
+
+                        // ランク判定（コメントから簡易的に取得、あるいはサーバーから返すべきだが今回は簡易実装）
+                        let rankClass = 'rank-c'; // Default
+                        if (comment.includes('【S】')) rankClass = 'rank-s';
+                        else if (comment.includes('【A】')) rankClass = 'rank-a';
+                        else if (comment.includes('【B】')) rankClass = 'rank-b';
+                        else if (comment.includes('【C】')) rankClass = 'rank-c';
+                        else if (comment.includes('【D】')) rankClass = 'rank-d';
+
+                        // スコアとコメントを表示
+                        resultDiv.innerHTML = `<span>${score} 点</span>${comment}`;
+
+                        // アニメーションクラスを適用
+                        resultDiv.className = ''; // Reset
+                        void resultDiv.offsetWidth; // Trigger reflow
+                        resultDiv.classList.add('show', rankClass);
+
+                    } else {
+                        resultDiv.innerHTML = `エラー: ${data.error}`;
+                        resultDiv.style.color = 'red';
+                    }
+                })
+                .catch(error => {
+                    loadingDiv.style.display = 'none';
+                    resultDiv.innerHTML = `診断に失敗しました: ${error.message}`;
+                    resultDiv.style.color = 'red';
+                    console.error('Error:', error);
+                });
+        });
+    </script>
+</body>
+
+</html>
