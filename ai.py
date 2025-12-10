@@ -3,19 +3,38 @@ from tensorflow.keras.models import load_model # type: ignore
 from PIL import Image
 import numpy as np
 import io
+import os # Added for file path checks
 
 # --- 1. 初期設定 ---
 app = Flask(__name__)
 model = None
 IMAGE_SIZE = (224, 224) # 訓練時と同じサイズ
 
-# --- 2. AIモデルのロード ---
-try:
-    model = load_model('horse_body_model.h5')
-    print(" * AIモデル (horse_body_model.h5) のロードに成功しました。")
-except Exception as e:
-    print(f" * AIモデルのロードに失敗しました: {e}")
-    print(" * train.py を実行してモデルファイルを作成してください。")
+# --- 2. AIモデルのロード（サーバー起動時に1回だけ実行）
+# モデルファイルが無い場合はダミーモデルを作成する
+if not os.path.exists('horse_body_model.h5'):
+    print("AIモデルが見つかりません。ダミーモデルを作成します...")
+    # create_dummy_model.py を実行
+    import subprocess
+    try:
+        subprocess.run(['python', 'create_dummy_model.py'], check=True)
+        print("ダミーモデルの作成に成功しました。")
+    except subprocess.CalledProcessError as e:
+        print(f"ダミーモデル作成エラー: {e}")
+    except FileNotFoundError:
+        print("create_dummy_model.py が見つかりません。")
+
+# 再度存在確認
+if os.path.exists('horse_body_model.h5'):
+    try:
+        model = load_model('horse_body_model.h5')
+        print(" * AIモデル (horse_body_model.h5) のロードに成功しました。")
+    except Exception as e:
+        print(f"モデルロードエラー: {e}")
+        model = None
+else:
+    print("モデルファイルを作成できませんでした。")
+    model = None
 
 def preprocess_image(image_bytes):
     """
