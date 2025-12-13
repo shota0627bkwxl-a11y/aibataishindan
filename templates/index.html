@@ -3,43 +3,235 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI馬体診断 (模擬版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI馬体診断</title>
+    <style>
+        :root {
+            --primary-bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #2d3436;
+            --text-sub: #636e72;
+            --accent: #2d3436;
+            --border: #dfe6e9;
+            --radius: 12px;
+        }
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='sstyle.css') }}">
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 480px;
+            padding: 40px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 800;
+            margin: 0 0 10px 0;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin-bottom: 30px;
+        }
+
+        /* アップロードエリア */
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 30px 20px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            margin-bottom: 20px;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #b2bec3;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            color: var(--text-sub);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ボタン */
+        .btn-main {
+            width: 100%;
+            background: var(--accent);
+            color: white;
+            padding: 16px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-main:hover {
+            opacity: 0.9;
+        }
+
+        .btn-main:disabled {
+            background: #b2bec3;
+            cursor: not-allowed;
+        }
+
+        /* 結果表示 */
+        #result-area {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+
+        .score-display {
+            font-size: 48px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 10px 0;
+            color: var(--accent);
+        }
+
+        .score-unit {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin-left: 4px;
+        }
+
+        .rank-badge {
+            display: inline-block;
+            background: #2d3436;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 20px;
+            margin-bottom: 15px;
+        }
+
+        .comment-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-main);
+            text-align: left;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .loading-text {
+            color: var(--text-sub);
+            font-size: 14px;
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>AI馬体診断</h1>
-    <p>パドックの馬の写真をアップロードしてください</p>
 
-    <div class="upload-container">
+    <div class="container">
+        <h1>AI馬体診断</h1>
+        <p class="subtitle">AIがあなたの選んだ馬体を瞬時に分析します</p>
+
+        <label for="imageInput" class="upload-area" id="dropArea">
+            <span class="upload-icon">📷</span>
+            <span class="upload-text">タップして写真を選択</span>
+            <img id="preview" alt="プレビュー">
+        </label>
         <input type="file" id="imageInput" accept="image/*">
-        <button id="uploadButton">診断する</button>
+
+        <button id="diagnoseBtn" class="btn-main" disabled>診断を開始する</button>
+        <div id="loading" class="loading-text">AIが分析中...</div>
+
+        <div id="result-area">
+            <span id="rankBadge" class="rank-badge">-</span>
+            <div class="score-display"><span id="scoreVal">0.0</span><span class="score-unit">点</span></div>
+            <div id="commentBox" class="comment-text"></div>
+        </div>
     </div>
 
-    <div id="loading">AIが診断中...</div>
-    <div id="result"></div>
-
     <script>
-        document.getElementById('uploadButton').addEventListener('click', () => {
-            const imageInput = document.getElementById('imageInput');
-            const resultDiv = document.getElementById('result');
-            const loadingDiv = document.getElementById('loading');
+        const imageInput = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const uploadText = document.querySelector('.upload-text');
+        const uploadIcon = document.querySelector('.upload-icon');
+        const diagnoseBtn = document.getElementById('diagnoseBtn');
+        const loading = document.getElementById('loading');
+        const resultArea = document.getElementById('result-area');
+        const scoreVal = document.getElementById('scoreVal');
+        const commentBox = document.getElementById('commentBox');
+        const rankBadge = document.getElementById('rankBadge');
 
-            // 1. 画像が選択されているかチェック
-            if (imageInput.files.length === 0) {
-                resultDiv.innerHTML = '画像を選択してください。';
-                resultDiv.style.color = 'red';
-                return;
+        // 画像選択時のプレビュー処理
+        imageInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    preview.src = evt.target.result;
+                    preview.style.display = 'block';
+                    uploadText.style.display = 'none';
+                    uploadIcon.style.display = 'none';
+                    diagnoseBtn.disabled = false;
+                    resultArea.style.display = 'none'; // 新しい画像を選んだら結果を隠す
+                };
+                reader.readAsDataURL(file);
             }
+        });
 
-            // 2. 結果をリセットし、ローディング表示を開始
-            resultDiv.innerHTML = '';
-            resultDiv.style.color = '#333';
-            loadingDiv.style.display = 'block';
+        // 診断ボタンクリック処理
+        diagnoseBtn.addEventListener('click', () => {
+            if (imageInput.files.length === 0) return;
 
-            // 3. サーバーに画像を送信 (fetch)
+            // UI更新
+            diagnoseBtn.disabled = true;
+            loading.style.display = 'block';
+            resultArea.style.display = 'none';
+
+            // 送信
             const formData = new FormData();
             formData.append('image', imageInput.files[0]);
 
@@ -48,42 +240,41 @@
                 body: formData
             })
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error('ネットワークエラーが発生しました');
-                    }
+                    if (!response.ok) throw new Error('Network response was not ok');
                     return response.json();
                 })
                 .then(data => {
-                    loadingDiv.style.display = 'none';
+                    loading.style.display = 'none';
+                    diagnoseBtn.disabled = false;
+
                     if (data.success) {
-                        const score = data.score.toFixed(1);
-                        const comment = data.comment;
+                        // スコア表示
+                        scoreVal.textContent = data.score;
 
-                        // ランク判定（コメントから簡易的に取得、あるいはサーバーから返すべきだが今回は簡易実装）
-                        let rankClass = 'rank-c'; // Default
-                        if (comment.includes('【S】')) rankClass = 'rank-s';
-                        else if (comment.includes('【A】')) rankClass = 'rank-a';
-                        else if (comment.includes('【B】')) rankClass = 'rank-b';
-                        else if (comment.includes('【C】')) rankClass = 'rank-c';
-                        else if (comment.includes('【D】')) rankClass = 'rank-d';
+                        // コメント表示
+                        commentBox.textContent = data.comment;
 
-                        // スコアとコメントを表示
-                        resultDiv.innerHTML = `<span>${score} 点</span>${comment}`;
+                        // ランクバッジ抽出 (コメントから 【S】などを探す)
+                        const match = data.comment.match(/【([SABCD])】/);
+                        let rank = 'B';
+                        if (match) rank = match[1];
+                        rankBadge.textContent = `ランク ${rank}`;
 
-                        // アニメーションクラスを適用
-                        resultDiv.className = ''; // Reset
-                        void resultDiv.offsetWidth; // Trigger reflow
-                        resultDiv.classList.add('show', rankClass);
+                        // 色分け (S:Gold, A:Red, B:Blue...)
+                        const colors = {
+                            'S': '#f1c40f', 'A': '#e74c3c', 'B': '#3498db', 'C': '#2ecc71', 'D': '#95a5a6'
+                        };
+                        rankBadge.style.backgroundColor = colors[rank] || '#2d3436';
 
+                        resultArea.style.display = 'block';
                     } else {
-                        resultDiv.innerHTML = `エラー: ${data.error}`;
-                        resultDiv.style.color = 'red';
+                        alert('エラー: ' + data.error);
                     }
                 })
                 .catch(error => {
-                    loadingDiv.style.display = 'none';
-                    resultDiv.innerHTML = `診断に失敗しました: ${error.message}`;
-                    resultDiv.style.color = 'red';
+                    loading.style.display = 'none';
+                    diagnoseBtn.disabled = false;
+                    alert('通信エラーが発生しました。もう一度お試しください。');
                     console.error('Error:', error);
                 });
         });
