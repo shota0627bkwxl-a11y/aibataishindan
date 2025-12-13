@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 from tensorflow.keras.models import load_model # type: ignore
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
 from PIL import Image
 import numpy as np
 import io
@@ -8,6 +9,7 @@ import os # Added for file path checks
 # --- 1. 初期設定 ---
 app = Flask(__name__)
 model = None
+check_model = None # 馬判定用モデル
 IMAGE_SIZE = (224, 224) # 訓練時と同じサイズ
 
 # --- 2. AIモデルのロード（サーバー起動時に1回だけ実行） ---
@@ -49,6 +51,17 @@ if os.path.exists('horse_body_model.h5'):
     try:
         model = load_model('horse_body_model.h5')
         print(" * AIモデル (horse_body_model.h5) のロードに成功しました。")
+        
+        # ついでにチェック用モデルもロードしておく（初回アクセスのラグを防ぐため）
+        # ただしメモリが厳しいならリクエスト時にロードする手法に変えるが、
+        # MobileNetV2は比較的小さいので常駐トライ
+        try:
+             print(" * 馬判定用モデル (MobileNetV2) をロード中...")
+             check_model = MobileNetV2(weights='imagenet')
+             print(" * 馬判定用モデルのロード完了。")
+        except Exception as e:
+             print(f"馬判定モデルロード失敗: {e}")
+
     except Exception as e:
         print(f"モデルロードエラー: {e}")
         model = None
@@ -78,6 +91,7 @@ def index():
 # "/diagnose" へのPOSTリクエスト（画像診断）を処理
 @app.route('/diagnose', methods=['POST'])
 def diagnose_horse():
+    global check_model
     if model is None:
         return jsonify({'error': 'AIモデルが準備できていません'}), 500
     
@@ -89,13 +103,49 @@ def diagnose_horse():
     try:
         # 画像を前処理
         image_bytes = file.read()
-        processed_image = preprocess_image(image_bytes)
         
-        # AIモデルによる予測（6クラス分類: SS, S, A, B, C, D）
+        # --- 馬判定ロジック (ImageNet) ---
+        # 犬や人を弾くため、まず汎用モデルで「何が写っているか」をチェック
+        try:
+            # 念のためここでロード（失敗時再試行）
+            if check_model is None:
+                 check_model = MobileNetV2(weights='imagenet')
+            
+            # MobileNetV2用の前処理 (-1 to 1)
+            check_img = Image.open(io.BytesIO(image_bytes)).convert('RGB').resize((224, 224))
+            check_arr = np.array(check_img)
+            check_arr = np.expand_dims(check_arr, axis=0)
+            check_arr = preprocess_input(check_arr)
+            
+            preds = check_model.predict(check_arr)
+            decoded = decode_predictions(preds, top=5)[0]
+            # decoded = [('n02389026', 'sorrel', 0.8), ...]
+
+            horse_keywords = ['sorrel', 'zebra', 'horse', 'pony', 'donkey', 'mule', 'ox', 'impala', 'gazelle'] 
+            
+            is_horse = False
+            detected_label = decoded[0][1] # Top1ラベル
+            
+            for d in decoded:
+                label = d[1].lower()
+                if any(k in label for k in horse_keywords):
+                    is_horse = True
+                    break
+            
+            if not is_horse:
+                 return jsonify({
+                    'success': False, 
+                    'error': f'馬の写真に見えません（判定: {detected_label}）。馬の写真をアップロードしてください。'
+                }), 200 # 200で返してアラート表示
+
+        except Exception as e:
+            print(f"馬判定スキップ: {e}")
+            pass # エラー時はスルーして診断へ
+
+        # --- AI診断ロジック (Custom Model) ---
+        processed_image = preprocess_image(image_bytes)
         prediction = model.predict(processed_image)
         
-        # アルファベット順: A, B, C, D, S, SS
-        # Index: 0, 1, 2, 3, 4, 5
         class_names = ['A', 'B', 'C', 'D', 'S', 'SS']
         class_scores = [85, 75, 65, 50, 95, 100]
 
@@ -103,12 +153,10 @@ def diagnose_horse():
         
         if len(probs) != 6:
             # 旧モデル(5クラス)の場合のフォールバック
-            # A, B, C, D, S -> 0,1,2,3,4
             class_names_old = ['A', 'B', 'C', 'D', 'S']
             class_scores_old = [85, 75, 65, 50, 100] 
             final_score = np.sum(probs * class_scores_old)
         else:
-            # 新モデル(6クラス)の場合
             final_score = np.sum(probs * class_scores)
 
         score_percent = final_score

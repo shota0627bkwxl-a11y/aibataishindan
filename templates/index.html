@@ -37,6 +37,7 @@
             padding: 40px 30px;
             border-radius: 24px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            /* ふんわりとした影 */
             text-align: center;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
@@ -69,8 +70,11 @@
             position: relative;
             overflow: hidden;
             display: flex;
+            /* フレックスボックス化 */
             flex-direction: column;
+            /* 縦並び */
             align-items: center;
+            /* 中央揃え */
             justify-content: center;
         }
 
@@ -92,6 +96,7 @@
             font-weight: 700;
         }
 
+        /* プレースホルダーラッパー */
         #uploadPlaceholder {
             display: flex;
             flex-direction: column;
@@ -114,6 +119,7 @@
         .btn-main {
             width: 100%;
             background: #2c3e50;
+            /* ダークネイビー */
             color: #fff;
             padding: 18px;
             border: none;
@@ -151,6 +157,7 @@
 
         .score-val {
             font-family: 'Oswald', sans-serif;
+            /* 数字専用フォント */
             font-size: 80px;
             color: #2c3e50;
             line-height: 1;
@@ -194,12 +201,38 @@
             font-weight: 700;
             cursor: pointer;
             margin-top: 20px;
+            margin-right: 10px;
             transition: all 0.2s;
         }
 
         .retry-btn:hover {
             background: #dfe6e9;
             color: #2c3e50;
+        }
+
+        .share-btn {
+            background: #000;
+            /* X color */
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+
+        .share-btn:hover {
+            background: #333;
+            transform: scale(1.02);
+        }
+
+        .note-text {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 15px;
+            line-height: 1.4;
         }
 
         .loading-text {
@@ -235,7 +268,12 @@
             </div>
             <span id="rankBadge" class="rank-label">-</span>
             <div id="commentBox" class="comment-box"></div>
+
+            <!-- ボタン類 -->
             <button id="retryBtn" class="retry-btn">もう一度診断する</button>
+            <button id="shareBtn" class="share-btn">Xでシェア</button>
+
+            <p class="note-text">※診断画像の著作権にご注意ください。<br>SNS等で共有する場合は、ご自身で撮影した写真のみをご使用ください。</p>
         </div>
     </div>
 
@@ -250,6 +288,11 @@
         const commentBox = document.getElementById('commentBox');
         const rankBadge = document.getElementById('rankBadge');
         const retryBtn = document.getElementById('retryBtn');
+        const shareBtn = document.getElementById('shareBtn');
+
+        // シェア機能用変数
+        let currentScore = 0;
+        let currentRank = '-';
 
         // 画像選択時
         imageInput.addEventListener('change', function (e) {
@@ -277,6 +320,7 @@
         retryBtn.addEventListener('click', () => {
             // UIのリセット
             resultArea.style.display = 'none';
+            // 画像は残さずリセットする
             preview.style.display = 'none';
             uploadPlaceholder.style.display = 'flex';
             imageInput.value = ''; // ファイルクリア
@@ -287,6 +331,13 @@
             document.querySelector('.upload-area').style.background = '#fff';
 
             diagnoseBtn.disabled = true;
+        });
+
+        // シェアボタン
+        shareBtn.addEventListener('click', () => {
+            const text = `AI馬体診断の結果：スコア【${currentScore}点】 ランク【${currentRank}】でした！\n#AI馬体診断 #競馬\n`;
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
         });
 
         // 診断ボタン
@@ -311,6 +362,9 @@
                         scoreVal.textContent = data.score;
                         commentBox.innerText = data.comment;
 
+                        // シェア用に保存
+                        currentScore = data.score;
+
                         // SSランク判定ロジック
                         let r = 'C';
                         if (score >= 96) r = 'SS';
@@ -322,6 +376,8 @@
 
                         const match = data.comment.match(/【(SS|[SABCD])】/);
                         if (match) r = match[1];
+
+                        currentRank = r; // シェア用に保存
 
                         rankBadge.textContent = "RANK " + r;
 
@@ -347,8 +403,11 @@
                             rankBadge.style.color = '#fff';
                         }
 
+                        // 画像は表示したまま
+
                         resultArea.style.display = 'block';
                     } else {
+                        // エラーが出た場合（馬じゃないなど）
                         alert('エラー: ' + (data.error || '失敗しました'));
                     }
                 })
