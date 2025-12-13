@@ -147,14 +147,20 @@ def diagnose_horse():
         prediction = model.predict(processed_image)
         
         class_names = ['A', 'B', 'C', 'D', 'S', 'SS']
-        class_scores = [85, 75, 65, 50, 95, 100]
+        # クラスラベル定義（※学習時のgenerator.class_indicesの順序に対応させる必要あり）
+        # アルファベット順だと: ['A', 'B', 'C', 'D', 'S', 'SS'] の可能性が高い
+        
+        # ユーザー要望（辛口査定）: A以上は相当強く、Cをボリュームゾーンに。
+        # スコア配分を全体的に下げて、「ワンランクダウン」させる調整
+        # A(76)->B判定, B(68)->C判定, C(62)->C判定, S(85)->A判定
+        class_scores = [76, 68, 62, 45, 85, 98]
 
         probs = prediction[0]
         
         if len(probs) != 6:
             # 旧モデル(5クラス)の場合のフォールバック
             class_names_old = ['A', 'B', 'C', 'D', 'S']
-            class_scores_old = [85, 75, 65, 50, 100] 
+            class_scores_old = [76, 68, 62, 45, 90] # 旧モデルも少し辛口に
             final_score = np.sum(probs * class_scores_old)
         else:
             final_score = np.sum(probs * class_scores)
