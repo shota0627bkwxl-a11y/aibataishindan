@@ -91,7 +91,7 @@ def diagnose_horse():
         image_bytes = file.read()
         processed_image = preprocess_image(image_bytes)
         
-        # AIモデルによる予測（6クラス分類: SS, S, A, B, C, D）になる予定
+        # AIモデルによる予測（6クラス分類: SS, S, A, B, C, D）
         prediction = model.predict(processed_image)
         
         # アルファベット順: A, B, C, D, S, SS
@@ -101,40 +101,30 @@ def diagnose_horse():
 
         probs = prediction[0]
         
-        # もしモデルがまだ5クラス（SS無し）のままだとエラーになる可能性があるので、
-        # 配列の長さチェックを入れるのが安全だが、今回はモデルも作り直す前提で進める。
         if len(probs) != 6:
             # 旧モデル(5クラス)の場合のフォールバック
             # A, B, C, D, S -> 0,1,2,3,4
             class_names_old = ['A', 'B', 'C', 'D', 'S']
-            class_scores_old = [85, 75, 65, 50, 100] # Sを100にしておく
+            class_scores_old = [85, 75, 65, 50, 100] 
             final_score = np.sum(probs * class_scores_old)
-            max_idx = np.argmax(probs)
-            predicted_class = class_names_old[max_idx]
-            
-            # 擬似SS判定
-            if final_score >= 96: predicted_class = 'SS'
-            
         else:
             # 新モデル(6クラス)の場合
             final_score = np.sum(probs * class_scores)
-            max_idx = np.argmax(probs)
-            predicted_class = class_names[max_idx]
 
         score_percent = final_score
         
         comment = '診断中...'
         
-        if predicted_class == 'SS' or score_percent >= 96.0:
-             comment = 'AI評価: 【SS】異次元級！歴史的名馬に匹敵するレベルです。。'
-             predicted_class = 'SS' # 強制上書き
-        elif predicted_class == 'S':
+        # ランクとスコアの不整合を直す：スコア基準でランクを強制決定する
+        if score_percent >= 96.0:
+             comment = 'AI評価: 【SS】異次元級！歴史的名馬に匹敵するレベルです。'
+        elif score_percent >= 90.0:
              comment = 'AI評価: 【S】素晴らしい！G1級の馬体です。'
-        elif predicted_class == 'A':
+        elif score_percent >= 80.0:
              comment = 'AI評価: 【A】かなり良いです。重賞も狙える器。'
-        elif predicted_class == 'B':
+        elif score_percent >= 70.0:
              comment = 'AI評価: 【B】標準より良いです。勝ち上がりは近そう。'
-        elif predicted_class == 'C':
+        elif score_percent >= 60.0:
              comment = 'AI評価: 【C】平均的です。成長に期待。'
         else:
              comment = 'AI評価: 【D】少し厳しいかもしれません。'

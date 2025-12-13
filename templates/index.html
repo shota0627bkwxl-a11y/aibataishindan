@@ -185,6 +185,23 @@
             font-weight: 500;
         }
 
+        .retry-btn {
+            background: #ecf0f1;
+            color: #7f8c8d;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+
+        .retry-btn:hover {
+            background: #dfe6e9;
+            color: #2c3e50;
+        }
+
         .loading-text {
             color: #95a5a6;
             margin-top: 15px;
@@ -218,6 +235,7 @@
             </div>
             <span id="rankBadge" class="rank-label">-</span>
             <div id="commentBox" class="comment-box"></div>
+            <button id="retryBtn" class="retry-btn">もう一度診断する</button>
         </div>
     </div>
 
@@ -231,6 +249,7 @@
         const scoreVal = document.getElementById('scoreVal');
         const commentBox = document.getElementById('commentBox');
         const rankBadge = document.getElementById('rankBadge');
+        const retryBtn = document.getElementById('retryBtn');
 
         // 画像選択時
         imageInput.addEventListener('change', function (e) {
@@ -252,6 +271,22 @@
                 };
                 reader.readAsDataURL(file);
             }
+        });
+
+        // リセットボタン（再診断）
+        retryBtn.addEventListener('click', () => {
+            // UIのリセット
+            resultArea.style.display = 'none';
+            preview.style.display = 'none';
+            uploadPlaceholder.style.display = 'flex';
+            imageInput.value = ''; // ファイルクリア
+
+            // スタイル戻す
+            document.querySelector('.upload-area').style.padding = '40px 20px';
+            document.querySelector('.upload-area').style.border = '2px dashed #dcdde1';
+            document.querySelector('.upload-area').style.background = '#fff';
+
+            diagnoseBtn.disabled = true;
         });
 
         // 診断ボタン
@@ -276,8 +311,7 @@
                         scoreVal.textContent = data.score;
                         commentBox.innerText = data.comment;
 
-                        // SSランク判定ロジック (96点以上)
-                        // Server側で【SS】を返すこともあるので、それもキャッチする
+                        // SSランク判定ロジック
                         let r = 'C';
                         if (score >= 96) r = 'SS';
                         else if (score >= 90) r = 'S';
@@ -293,6 +327,7 @@
 
                         // 色分け
                         const c = {
+                            'SS': '#000000',
                             'S': '#e1b12c',
                             'A': '#e74c3c',
                             'B': '#3498db',
@@ -300,12 +335,11 @@
                             'D': '#95a5a6'
                         };
 
-                        // SSだけ特別なデザインにする
                         if (r === 'SS') {
                             rankBadge.style.background = 'linear-gradient(135deg, #000 0%, #2c3e50 100%)';
                             rankBadge.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
-                            rankBadge.style.border = '1px solid #ffd700'; // 金色の枠
-                            rankBadge.style.color = '#ffd700'; // 金色の文字
+                            rankBadge.style.border = '1px solid #ffd700';
+                            rankBadge.style.color = '#ffd700';
                         } else {
                             rankBadge.style.background = c[r] || '#2c3e50';
                             rankBadge.style.boxShadow = 'none';
