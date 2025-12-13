@@ -91,48 +91,53 @@ def diagnose_horse():
         image_bytes = file.read()
         processed_image = preprocess_image(image_bytes)
         
-        # AIモデルによる予測（5クラス分類: S, A, B, C, D）
+        # AIモデルによる予測（6クラス分類: SS, S, A, B, C, D）になる予定
         prediction = model.predict(processed_image)
-        # prediction is [[prob_A, prob_B, prob_C, prob_D, prob_S]] (Alphabetical order usually)
-        # However, flow_from_directory uses alphabetical order.
-        # A, B, C, D, S -> 0, 1, 2, 3, 4
-        # Wait, sorted(os.listdir) order: A, B, C, D, S
         
-        # Mapping index to Score
-        # A(0) -> 85, B(1) -> 75, C(2) -> 65, D(3) -> 50, S(4) -> 95
-        # Let's verify train_generator.class_indices during training, but standard is alphabetical.
-        
-        # We will calculate a weighted score.
+        # アルファベット順: A, B, C, D, S, SS
+        # Index: 0, 1, 2, 3, 4, 5
+        class_names = ['A', 'B', 'C', 'D', 'S', 'SS']
+        class_scores = [85, 75, 65, 50, 95, 100]
+
         probs = prediction[0]
-        # Assuming alphabetical order: A, B, C, D, S ?? No, 'S' comes after 'D'.
-        # Let's assume standard sorting: A, B, C, D, S
-        # A:0, B:1, C:2, D:3, S:4
         
-        # Base scores for each class
-        # S=95, A=85, B=75, C=65, D=50
-        class_scores = [85, 75, 65, 50, 95] 
-        
-        # Expected Score = sum(prob * score)
-        final_score = np.sum(probs * class_scores)
-        
-        # Comment based on the highest probability class or the score
-        max_idx = np.argmax(probs)
-        class_names = ['A', 'B', 'C', 'D', 'S']
-        predicted_class = class_names[max_idx]
+        # もしモデルがまだ5クラス（SS無し）のままだとエラーになる可能性があるので、
+        # 配列の長さチェックを入れるのが安全だが、今回はモデルも作り直す前提で進める。
+        if len(probs) != 6:
+            # 旧モデル(5クラス)の場合のフォールバック
+            # A, B, C, D, S -> 0,1,2,3,4
+            class_names_old = ['A', 'B', 'C', 'D', 'S']
+            class_scores_old = [85, 75, 65, 50, 100] # Sを100にしておく
+            final_score = np.sum(probs * class_scores_old)
+            max_idx = np.argmax(probs)
+            predicted_class = class_names_old[max_idx]
+            
+            # 擬似SS判定
+            if final_score >= 96: predicted_class = 'SS'
+            
+        else:
+            # 新モデル(6クラス)の場合
+            final_score = np.sum(probs * class_scores)
+            max_idx = np.argmax(probs)
+            predicted_class = class_names[max_idx]
 
         score_percent = final_score
         
         comment = '診断中...'
-        if predicted_class == 'S':
-            comment = 'AI評価: 【S】素晴らしい！G1級の馬体です。'
+        
+        if predicted_class == 'SS' or score_percent >= 96.0:
+             comment = 'AI評価: 【SS】異次元級！歴史的名馬に匹敵するレベルです。。'
+             predicted_class = 'SS' # 強制上書き
+        elif predicted_class == 'S':
+             comment = 'AI評価: 【S】素晴らしい！G1級の馬体です。'
         elif predicted_class == 'A':
-            comment = 'AI評価: 【A】かなり良いです。重賞も狙える器。'
+             comment = 'AI評価: 【A】かなり良いです。重賞も狙える器。'
         elif predicted_class == 'B':
-            comment = 'AI評価: 【B】標準より良いです。勝ち上がりは近そう。'
+             comment = 'AI評価: 【B】標準より良いです。勝ち上がりは近そう。'
         elif predicted_class == 'C':
-            comment = 'AI評価: 【C】平均的です。成長に期待。'
+             comment = 'AI評価: 【C】平均的です。成長に期待。'
         else:
-            comment = 'AI評価: 【D】少し厳しいかもしれません。'
+             comment = 'AI評価: 【D】少し厳しいかもしれません。'
 
         return jsonify({
             'success': True,

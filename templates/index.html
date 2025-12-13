@@ -37,7 +37,6 @@
             padding: 40px 30px;
             border-radius: 24px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-            /* ふんわりとした影 */
             text-align: center;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.8);
@@ -70,11 +69,8 @@
             position: relative;
             overflow: hidden;
             display: flex;
-            /* フレックスボックス化 */
             flex-direction: column;
-            /* 縦並び */
             align-items: center;
-            /* 中央揃え */
             justify-content: center;
         }
 
@@ -96,7 +92,6 @@
             font-weight: 700;
         }
 
-        /* プレースホルダーのラッパー（追加） */
         #uploadPlaceholder {
             display: flex;
             flex-direction: column;
@@ -119,7 +114,6 @@
         .btn-main {
             width: 100%;
             background: #2c3e50;
-            /* ダークネイビー */
             color: #fff;
             padding: 18px;
             border: none;
@@ -130,7 +124,6 @@
             box-shadow: 0 4px 15px rgba(44, 62, 80, 0.3);
             transition: transform 0.1s;
             display: block;
-            /* 確実にブロック要素に */
         }
 
         .btn-main:active {
@@ -158,7 +151,6 @@
 
         .score-val {
             font-family: 'Oswald', sans-serif;
-            /* 数字専用フォント */
             font-size: 80px;
             color: #2c3e50;
             line-height: 1;
@@ -280,18 +272,46 @@
                     diagnoseBtn.disabled = false;
 
                     if (data.success) {
+                        const score = parseFloat(data.score);
                         scoreVal.textContent = data.score;
                         commentBox.innerText = data.comment;
 
-                        // ランク判定
-                        const match = data.comment.match(/【([SABCD])】/);
-                        let r = 'B';
+                        // SSランク判定ロジック (96点以上)
+                        // Server側で【SS】を返すこともあるので、それもキャッチする
+                        let r = 'C';
+                        if (score >= 96) r = 'SS';
+                        else if (score >= 90) r = 'S';
+                        else if (score >= 80) r = 'A';
+                        else if (score >= 70) r = 'B';
+                        else if (score >= 60) r = 'C';
+                        else r = 'D';
+
+                        const match = data.comment.match(/【(SS|[SABCD])】/);
                         if (match) r = match[1];
 
                         rankBadge.textContent = "RANK " + r;
+
                         // 色分け
-                        const c = { 'S': '#e1b12c', 'A': '#e74c3c', 'B': '#3498db', 'C': '#2ecc71', 'D': '#95a5a6' };
-                        rankBadge.style.backgroundColor = c[r] || '#2c3e50';
+                        const c = {
+                            'S': '#e1b12c',
+                            'A': '#e74c3c',
+                            'B': '#3498db',
+                            'C': '#2ecc71',
+                            'D': '#95a5a6'
+                        };
+
+                        // SSだけ特別なデザインにする
+                        if (r === 'SS') {
+                            rankBadge.style.background = 'linear-gradient(135deg, #000 0%, #2c3e50 100%)';
+                            rankBadge.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+                            rankBadge.style.border = '1px solid #ffd700'; // 金色の枠
+                            rankBadge.style.color = '#ffd700'; // 金色の文字
+                        } else {
+                            rankBadge.style.background = c[r] || '#2c3e50';
+                            rankBadge.style.boxShadow = 'none';
+                            rankBadge.style.border = 'none';
+                            rankBadge.style.color = '#fff';
+                        }
 
                         resultArea.style.display = 'block';
                     } else {
